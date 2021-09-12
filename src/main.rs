@@ -90,8 +90,8 @@ struct Handler {
 
 #[derive(EnumString)]
 pub enum Commands {
-    #[strum(serialize = "start")]
-    Start,
+    // #[strum(serialize = "start")]
+    // Start,
     #[strum(serialize = "shuffle")]
     Shuffle,
 }
@@ -104,13 +104,6 @@ impl Handler {
     ) -> Result<(), Box<dyn std::error::Error>> {
         error!("Interaction created");
         if let Interaction::ApplicationCommand(command) = interaction.clone() {
-            // SET ROOM MAX
-            // decides how many users can be in a room
-
-            // STATUS
-            // gives info about room max and stuff
-            // category info
-
             // Get the slash command, or return if it's not a slash command.
             let slash_command = if let Some(slash_command) = interaction.application_command() {
                 slash_command
@@ -119,48 +112,25 @@ impl Handler {
             };
 
             match Commands::from_str(&slash_command.data.name[..]).unwrap() {
-                Commands::Start => {
-                    warn!("Start command");
+                Commands::Shuffle => {
+                    warn!("Shuffle command");
 
-                    let guild_id = command.guild_id.unwrap();
-                    let guild = guild_id
-                        .to_guild_cached(&ctx)
-                        .await
-                        .ok_or("Cannot get guild")?;
-
-                    // Try to get the category to be used for speed friending
-                    let speed_friend_category = guild
-                        .channels
+                    // Check that only an BoD member can use this command
+                    if !command
+                        .clone()
+                        .member
+                        .unwrap()
+                        .roles
                         .iter()
-                        .map(|(_, guild_channel)| guild_channel)
-                        .filter(|guild_channel| {
-                            guild_channel.kind == ChannelType::Category
-                                && guild_channel.name.as_str().to_lowercase() == "speed friending"
-                        })
-                        .collect::<Vec<&GuildChannel>>();
-
-                    // There should only be one category named "Speed Friending"
-
-                    if speed_friend_category.len() == 0 {
-                        command
-                            .create_interaction_response(&ctx.http, |response| {
-                                response
-                                    .kind(InteractionResponseType::ChannelMessageWithSource)
-                                    .interaction_response_data(|message| {
-                                        message
-                                            .content(format!("No speed friending category found"))
-                                    })
-                            })
-                            .await?;
-                        return Ok(());
-                    } else if speed_friend_category.len() > 1 {
+                        .any(|role_id| u64::from(*role_id) == 672308385517142017)
+                    {
                         command
                             .create_interaction_response(&ctx.http, |response| {
                                 response
                                     .kind(InteractionResponseType::ChannelMessageWithSource)
                                     .interaction_response_data(|message| {
                                         message.content(format!(
-                                            "Multiple speed friending categories found"
+                                            "Only BoD members can use this command"
                                         ))
                                     })
                             })
@@ -168,78 +138,6 @@ impl Handler {
                         return Ok(());
                     }
 
-                    warn!("TEST");
-
-                    // Make sure there are no channels in the category
-                    let existing_channels = guild
-                        .channels
-                        .iter()
-                        .map(|(_, guild_channel)| guild_channel)
-                        .filter(|guild_channel| match guild_channel.category_id {
-                            Some(category_id) => category_id == speed_friend_category[0].id,
-                            None => false,
-                        })
-                        .collect::<Vec<&GuildChannel>>();
-
-                    if existing_channels.len() > 0 {
-                        // command.create_interaction_response(&ctx.http, |response| {
-                        //     response
-                        //         .kind(InteractionResponseType::ChannelMessageWithSource)
-                        //         .interaction_response_data(|message| {
-                        //             message.content(format!("Channels already exist in speed friending category, please remove them first"))
-                        //         })
-                        // }).await?;
-                        // return Ok(());
-
-                        for channel in existing_channels {
-                            warn!("Deleting channel {}", channel.name);
-                            channel.delete(&ctx.http).await?;
-                        }
-                    }
-
-                    // Create the channels
-                    for i in 0..2 {
-                        let channel_name = format!("{} {}", "Speed Friending", i + 1);
-                        let channel_category = speed_friend_category[0].id;
-                        let channel_type = ChannelType::Voice;
-                        let channel_permissions = Permissions::empty();
-
-                        let channel = guild
-                            .create_channel(&ctx.http, |c| {
-                                c.name(channel_name)
-                                    .kind(channel_type)
-                                    .category(channel_category)
-                            })
-                            .await?;
-                    }
-
-                    // create channels depending on number of users
-
-                    // debug!(
-                    //     "{:?}",
-                    //     channels
-                    //         .iter()
-                    //         .filter(|(_, x)| x.kind == ChannelType::Category)
-                    //         .map(|(_, x)| x.name.as_str())
-                    //         .collect::<Vec<&str>>()
-                    // );
-
-                    // warn!("{:#?}", categories);
-                    // START ROOMS COMMANDS
-                    // look for category with certain name to put channels in
-                    // If it doesn't exist, tell them to create it
-
-                    command
-                        .create_interaction_response(&ctx.http, |response| {
-                            response
-                                .kind(InteractionResponseType::ChannelMessageWithSource)
-                                .interaction_response_data(|message| {
-                                    message.content(format!("Channels created!"))
-                                })
-                        })
-                        .await?;
-                }
-                Commands::Shuffle => {
                     // Check that there isn't already a shuffle going on
                     let lock = self.shuffle_mutex.try_lock();
 
@@ -255,8 +153,6 @@ impl Handler {
                             .await?;
                         return Ok(());
                     }
-
-                    warn!("Shuffle command");
 
                     // Get the guild
                     let guild_id = command.guild_id.unwrap();
@@ -299,6 +195,9 @@ impl Handler {
                     .flatten()
                     .collect::<Vec<Member>>();
 
+                    // Remove the lobby channel from the list of channels
+                    speed_friend_channels.retain(|channel| channel.name.to_lowercase() != "lobby");
+
                     // Reply with a message
                     command
                         .create_interaction_response(&ctx.http, |response| {
@@ -311,33 +210,29 @@ impl Handler {
                         .await?;
 
                     // Shuffle the speakers
-                    for _ in 0..5 {
-                        // warn!("{}", self.shuffle_mutex.);
-                        speakers.shuffle(&mut rand::thread_rng());
-                        speed_friend_channels.shuffle(&mut rand::thread_rng());
+                    speakers.shuffle(&mut rand::thread_rng());
+                    speed_friend_channels.shuffle(&mut rand::thread_rng());
 
-                        for (i, speaker) in speakers.iter().enumerate() {
-                            let channel = speed_friend_channels[i % speed_friend_channels.len()];
+                    for (i, speaker) in speakers.iter().enumerate() {
+                        let channel = speed_friend_channels[i % speed_friend_channels.len()];
 
-                            // TODO: Check that they're not already in the channel
+                        // TODO: Check that they're not already in the channel
 
-                            let error = speaker.move_to_voice_channel(&ctx.http, channel).await;
+                        let error = speaker.move_to_voice_channel(&ctx.http, channel).await;
 
-                            sleep(Duration::from_millis(700)).await;
-                            match error {
-                                Ok(_) => warn!("Moved {} to {}", speaker.user.name, channel.name),
-                                Err(e) => {
-                                    warn!(
-                                        "Error moving {} to {}: {:?}",
-                                        speaker.user.name, channel.name, e
-                                    )
-                                }
+                        sleep(Duration::from_millis(700)).await;
+                        match error {
+                            Ok(_) => warn!("Moved {} to {}", speaker.user.name, channel.name),
+                            Err(e) => {
+                                warn!(
+                                    "Error moving {} to {}: {:?}",
+                                    speaker.user.name, channel.name, e
+                                )
                             }
                         }
                     }
 
                     warn!("Done shuffle");
-
                 }
             }
         }
