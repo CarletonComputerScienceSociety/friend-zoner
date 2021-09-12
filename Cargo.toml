@@ -8,4 +8,7 @@ edition = "2018"
 [dependencies]
 serenity = { git = "https://github.com/serenity-rs/serenity", branch = "current", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "cache", "unstable_discord_api"] }
 tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
-strum_macros = "0.21.1"
+strum = "0.21"
+strum_macros = "0.21"
+tracing = "0.1"
+tracing-subscriber = "0.2"
