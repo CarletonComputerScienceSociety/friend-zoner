@@ -37,7 +37,7 @@ async fn main() {
     let mut client = Client::builder(&bot_token)
         .application_id(882040915882033272)
         .event_handler(Handler {
-            shuffle_mutex: Mutex::new(false),
+            shuffle_mutex: Mutex::new(()),
         })
         .await
         .expect("Err creating client");
@@ -85,7 +85,7 @@ fn init_tracing() {
 }
 
 struct Handler {
-    shuffle_mutex: Mutex<bool>,
+    shuffle_mutex: Mutex<()>,
 }
 
 #[derive(EnumString)]
@@ -241,7 +241,9 @@ impl Handler {
                 }
                 Commands::Shuffle => {
                     // Check that there isn't already a shuffle going on
-                    if let Err(_) = self.shuffle_mutex.try_lock() {
+                    let lock = self.shuffle_mutex.try_lock();
+
+                    if let Err(_) = lock {
                         command
                             .create_interaction_response(&ctx.http, |response| {
                                 response
@@ -309,8 +311,8 @@ impl Handler {
                         .await?;
 
                     // Shuffle the speakers
-                    for _ in 0..20 {
-                        warn!("{}", self.shuffle_mutex.);
+                    for _ in 0..5 {
+                        // warn!("{}", self.shuffle_mutex.);
                         speakers.shuffle(&mut rand::thread_rng());
                         speed_friend_channels.shuffle(&mut rand::thread_rng());
 
@@ -333,6 +335,9 @@ impl Handler {
                             }
                         }
                     }
+
+                    warn!("Done shuffle");
+
                 }
             }
         }
