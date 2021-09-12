@@ -1,30 +1,20 @@
-use std::env;
-
 use futures::future;
 use rand::prelude::SliceRandom;
-use rand::Rng;
 use serenity::model::channel::{ChannelType, GuildChannel};
 use serenity::model::guild::Member;
-use serenity::model::Permissions;
 use serenity::{
     async_trait,
     model::{
         gateway::Ready,
         id::GuildId,
-        interactions::{
-            application_command::{
-                ApplicationCommand, ApplicationCommandInteractionDataOptionValue,
-                ApplicationCommandOptionType,
-            },
-            Interaction, InteractionResponseType,
-        },
+        interactions::{Interaction, InteractionResponseType},
     },
     prelude::*,
 };
 use std::str::FromStr;
 use strum_macros::EnumString;
 use tokio::time::{sleep, Duration};
-use tracing::{debug, error, warn, Level};
+use tracing::{debug, error, info, Level};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -32,7 +22,7 @@ async fn main() {
     init_tracing();
 
     // Configure the client with your Discord bot token in the environment.
-    let bot_token = "ODgyMDQwOTE1ODgyMDMzMjcy.YS1mnQ.MDIEMq0PSNKOifIZ6Sz4sBQ69vs";
+    let bot_token = "ODgyMDQwOTE1ODgyMDMzMjcy.YS1mnQ.bTWdC7hhNzN4BGxqPwn1mO6QJ3I";
 
     let mut client = Client::builder(&bot_token)
         .application_id(882040915882033272)
@@ -55,22 +45,7 @@ fn init_tracing() {
         f
     };
 
-    let list = &[
-        "tokio_util",
-        "h2",
-        "rustls",
-        "serenity",
-        "tungstenite",
-        "async_tungstenite",
-        "hyper",
-        "trust_dns_resolver",
-        "trust_dns_proto",
-        "reqwest",
-        "mio",
-        "want",
-        "kube",
-        "tower",
-    ];
+    let list = &["serenity"];
 
     let filter = EnvFilter::from_default_env();
     let filter = append_info(filter.add_directive(Level::TRACE.into()), list, "info");
@@ -102,7 +77,7 @@ impl Handler {
         ctx: Context,
         interaction: Interaction,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        error!("Interaction created");
+        info!("Interaction created");
         if let Interaction::ApplicationCommand(command) = interaction.clone() {
             // Get the slash command, or return if it's not a slash command.
             let slash_command = if let Some(slash_command) = interaction.application_command() {
@@ -113,7 +88,7 @@ impl Handler {
 
             match Commands::from_str(&slash_command.data.name[..]).unwrap() {
                 Commands::Shuffle => {
-                    warn!("Shuffle command");
+                    info!("Shuffle command");
 
                     // Check that only an BoD member can use this command
                     if !command
@@ -222,9 +197,9 @@ impl Handler {
 
                         sleep(Duration::from_millis(700)).await;
                         match error {
-                            Ok(_) => warn!("Moved {} to {}", speaker.user.name, channel.name),
+                            Ok(_) => info!("Moved {} to {}", speaker.user.name, channel.name),
                             Err(e) => {
-                                warn!(
+                                info!(
                                     "Error moving {} to {}: {:?}",
                                     speaker.user.name, channel.name, e
                                 )
@@ -232,7 +207,7 @@ impl Handler {
                         }
                     }
 
-                    warn!("Done shuffle");
+                    info!("Done shuffle");
                 }
             }
         }
@@ -251,14 +226,15 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
 
-        if let Err(e) = GuildId(882042113871732766)
+        // Todo: Move this to every guild or something
+        if let Err(e) = GuildId(672298618362789952)
             .set_application_commands(&ctx.http, |commands| {
                 commands
                     .create_application_command(|command| {
-                        command.name("shuffle").description("something")
+                        command.name("shuffle").description("Shuffle all ")
                     })
                     .create_application_command(|command| {
-                        command.name("start").description("something")
+                        command.name("start").description("Depricated")
                     })
             })
             .await
