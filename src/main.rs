@@ -1,6 +1,10 @@
 use std::env;
 
+use futures::future;
+use rand::prelude::SliceRandom;
+use rand::Rng;
 use serenity::model::channel::{ChannelType, GuildChannel};
+use serenity::model::guild::Member;
 use serenity::model::Permissions;
 use serenity::{
     async_trait,
@@ -92,6 +96,7 @@ impl Handler {
         &self,
         ctx: Context,
         interaction: Interaction,
+        // rng: &mut rand::rngs::ThreadRng,
     ) -> Result<(), Box<dyn std::error::Error>> {
         error!("Interaction created");
         if let Interaction::ApplicationCommand(command) = interaction.clone() {
@@ -113,7 +118,6 @@ impl Handler {
                 Commands::Start => {
                     warn!("Start command");
 
-                    let categories = ctx.cache.categories().await;
                     let guild_id = command.guild_id.unwrap();
                     let guild = guild_id
                         .to_guild_cached(&ctx)
@@ -182,12 +186,11 @@ impl Handler {
                         //         })
                         // }).await?;
                         // return Ok(());
-                        
+
                         for channel in existing_channels {
                             warn!("Deleting channel {}", channel.name);
                             channel.delete(&ctx.http).await?;
                         }
-                        
                     }
 
                     // Create the channels
@@ -234,6 +237,62 @@ impl Handler {
                 }
                 Commands::Shuffle => {
                     warn!("Shuffle command");
+
+                    let guild_id = command.guild_id.unwrap();
+                    let guild = guild_id
+                        .to_guild_cached(&ctx)
+                        .await
+                        .ok_or("Cannot get guild")?;
+
+                    // Try to get the category to be used for speed friending
+                    let speed_friend_category = guild
+                        .channels
+                        .iter()
+                        .map(|(_, guild_channel)| guild_channel)
+                        .filter(|guild_channel| {
+                            guild_channel.kind == ChannelType::Category
+                                && guild_channel.name.as_str().to_lowercase() == "speed friending"
+                        })
+                        .collect::<Vec<&GuildChannel>>();
+
+                    let speed_friend_channels = guild
+                        .channels
+                        .iter()
+                        .map(|(_, guild_channel)| guild_channel)
+                        .filter(|guild_channel| match guild_channel.category_id {
+                            Some(category_id) => category_id == speed_friend_category[0].id,
+                            None => false,
+                        } && guild_channel.kind == ChannelType::Voice)
+                        .collect::<Vec<&GuildChannel>>();
+
+                    // Find everyone in the voice channel
+                    let mut speakers = future::try_join_all(
+                        speed_friend_channels
+                            .iter()
+                            .map(|channel| channel.members(&ctx.cache)),
+                    )
+                    .await
+                    .unwrap()
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<Member>>();
+
+                    // let mut rng = rand::thread_rng();
+
+                    // Shuffle the speakers
+                    warn!("{:?}", speakers);
+                    speakers.shuffle(&mut rand::thread_rng());
+                    warn!("{:?}", speakers);
+
+                    for (i, speaker) in speakers.iter().enumerate() {
+                        warn!("{:?}", speaker);
+                        let channel = speed_friend_channels[i % speed_friend_channels.len()];
+                        let _ = speaker.move_to_voice_channel(&ctx.http, channel).await?;
+                    }
+
+                    // Get all the voice channels
+
+                    // Print everyone and the channel they're in
                     // SHUFFLE ROOMS
                     // see if it's the shuffle command
                     // get all users in rooms that are owned by the bot
@@ -249,6 +308,8 @@ impl Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn interaction_create(&self, context: Context, interaction: Interaction) {
+        // let mut rng = rand::thread_rng();
+
         if let Err(e) = self.interaction_create(context, interaction).await {
             error!(?e, "Error while processing message");
         }
