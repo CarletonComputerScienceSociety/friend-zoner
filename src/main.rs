@@ -23,6 +23,7 @@ use serenity::{
 };
 use std::str::FromStr;
 use strum_macros::EnumString;
+use tokio::time::{sleep, Duration};
 use tracing::{debug, error, warn, Level};
 use tracing_subscriber::EnvFilter;
 
@@ -35,7 +36,9 @@ async fn main() {
 
     let mut client = Client::builder(&bot_token)
         .application_id(882040915882033272)
-        .event_handler(Handler)
+        .event_handler(Handler {
+            shuffle_mutex: Mutex::new(false),
+        })
         .await
         .expect("Err creating client");
 
@@ -81,7 +84,9 @@ fn init_tracing() {
     debug!("tracing initialized");
 }
 
-struct Handler;
+struct Handler {
+    shuffle_mutex: Mutex<bool>,
+}
 
 #[derive(EnumString)]
 pub enum Commands {
@@ -96,7 +101,6 @@ impl Handler {
         &self,
         ctx: Context,
         interaction: Interaction,
-        // rng: &mut rand::rngs::ThreadRng,
     ) -> Result<(), Box<dyn std::error::Error>> {
         error!("Interaction created");
         if let Interaction::ApplicationCommand(command) = interaction.clone() {
@@ -236,8 +240,23 @@ impl Handler {
                         .await?;
                 }
                 Commands::Shuffle => {
+                    // Check that there isn't already a shuffle going on
+                    if let Err(_) = self.shuffle_mutex.try_lock() {
+                        command
+                            .create_interaction_response(&ctx.http, |response| {
+                                response
+                                    .kind(InteractionResponseType::ChannelMessageWithSource)
+                                    .interaction_response_data(|message| {
+                                        message.content(format!("A shuffle is already in progress"))
+                                    })
+                            })
+                            .await?;
+                        return Ok(());
+                    }
+
                     warn!("Shuffle command");
 
+                    // Get the guild
                     let guild_id = command.guild_id.unwrap();
                     let guild = guild_id
                         .to_guild_cached(&ctx)
@@ -255,7 +274,8 @@ impl Handler {
                         })
                         .collect::<Vec<&GuildChannel>>();
 
-                    let speed_friend_channels = guild
+                    // Get all the channels in the category
+                    let mut speed_friend_channels = guild
                         .channels
                         .iter()
                         .map(|(_, guild_channel)| guild_channel)
@@ -277,27 +297,42 @@ impl Handler {
                     .flatten()
                     .collect::<Vec<Member>>();
 
-                    // let mut rng = rand::thread_rng();
+                    // Reply with a message
+                    command
+                        .create_interaction_response(&ctx.http, |response| {
+                            response
+                                .kind(InteractionResponseType::ChannelMessageWithSource)
+                                .interaction_response_data(|message| {
+                                    message.content(format!("Shuffling rooms!"))
+                                })
+                        })
+                        .await?;
 
                     // Shuffle the speakers
-                    warn!("{:?}", speakers);
-                    speakers.shuffle(&mut rand::thread_rng());
-                    warn!("{:?}", speakers);
+                    for _ in 0..20 {
+                        warn!("{}", self.shuffle_mutex.);
+                        speakers.shuffle(&mut rand::thread_rng());
+                        speed_friend_channels.shuffle(&mut rand::thread_rng());
 
-                    for (i, speaker) in speakers.iter().enumerate() {
-                        warn!("{:?}", speaker);
-                        let channel = speed_friend_channels[i % speed_friend_channels.len()];
-                        let _ = speaker.move_to_voice_channel(&ctx.http, channel).await?;
+                        for (i, speaker) in speakers.iter().enumerate() {
+                            let channel = speed_friend_channels[i % speed_friend_channels.len()];
+
+                            // TODO: Check that they're not already in the channel
+
+                            let error = speaker.move_to_voice_channel(&ctx.http, channel).await;
+
+                            sleep(Duration::from_millis(700)).await;
+                            match error {
+                                Ok(_) => warn!("Moved {} to {}", speaker.user.name, channel.name),
+                                Err(e) => {
+                                    warn!(
+                                        "Error moving {} to {}: {:?}",
+                                        speaker.user.name, channel.name, e
+                                    )
+                                }
+                            }
+                        }
                     }
-
-                    // Get all the voice channels
-
-                    // Print everyone and the channel they're in
-                    // SHUFFLE ROOMS
-                    // see if it's the shuffle command
-                    // get all users in rooms that are owned by the bot
-                    // shuffle them into rooms based on how many users there are
-                    // add or remove rooms depending on size max
                 }
             }
         }
@@ -308,8 +343,6 @@ impl Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn interaction_create(&self, context: Context, interaction: Interaction) {
-        // let mut rng = rand::thread_rng();
-
         if let Err(e) = self.interaction_create(context, interaction).await {
             error!(?e, "Error while processing message");
         }
