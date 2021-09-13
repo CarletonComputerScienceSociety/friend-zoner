@@ -45,7 +45,22 @@ fn init_tracing() {
         f
     };
 
-    let list = &["serenity"];
+    let list = &[
+        "tokio_util",
+        "h2",
+        "rustls",
+        "serenity",
+        "tungstenite",
+        "async_tungstenite",
+        "hyper",
+        "trust_dns_resolver",
+        "trust_dns_proto",
+        "reqwest",
+        "mio",
+        "want",
+        "kube",
+        "tower",
+    ];
 
     let filter = EnvFilter::from_default_env();
     let filter = append_info(filter.add_directive(Level::TRACE.into()), list, "info");
