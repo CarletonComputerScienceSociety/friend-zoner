@@ -25,6 +25,5 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: docker/Dockerfile.prod
           push: true
           tags: ghcr.io/carletoncomputersciencesociety/friendzoner/friendzoner-rust:latest
