@@ -192,6 +192,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "friend-zoner"
+version = "1.0.0"
+dependencies = [
+ "futures",
+ "rand 0.8.4",
+ "serenity",
+ "strum",
+ "strum_macros",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "futures"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -853,20 +867,6 @@ dependencies = [
  "untrusted",
  "web-sys",
  "winapi",
-]
-
-[[package]]
-name = "room-bot-rs"
-version = "0.1.0"
-dependencies = [
- "futures",
- "rand 0.8.4",
- "serenity",
- "strum",
- "strum_macros",
- "tokio",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

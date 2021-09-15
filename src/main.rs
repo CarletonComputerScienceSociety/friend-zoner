@@ -11,6 +11,7 @@ use serenity::{
     },
     prelude::*,
 };
+use std::env;
 use std::str::FromStr;
 use strum_macros::EnumString;
 use tokio::time::{sleep, Duration};
@@ -22,7 +23,8 @@ async fn main() {
     init_tracing();
 
     // Configure the client with your Discord bot token in the environment.
-    let bot_token = "ODgyMDQwOTE1ODgyMDMzMjcy.YS1mnQ.bTWdC7hhNzN4BGxqPwn1mO6QJ3I";
+    let bot_token =
+        env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN token in the environment");
 
     let mut client = Client::builder(&bot_token)
         .application_id(882040915882033272)
