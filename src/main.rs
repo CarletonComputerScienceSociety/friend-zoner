@@ -107,6 +107,11 @@ impl Handler {
                 Commands::Shuffle => {
                     info!("Shuffle command");
 
+                    let authorized_role_ids = vec![
+                        672308385517142017, // CCSS BoD
+                        858020772966170635, // WiCS exec
+                    ];
+
                     // Check that only an BoD member can use this command
                     if !command
                         .clone()
@@ -114,16 +119,16 @@ impl Handler {
                         .unwrap()
                         .roles
                         .iter()
-                        .any(|role_id| u64::from(*role_id) == 672308385517142017)
+                        .any(|role_id| authorized_role_ids.contains(&role_id.0))
                     {
                         command
                             .create_interaction_response(&ctx.http, |response| {
                                 response
                                     .kind(InteractionResponseType::ChannelMessageWithSource)
                                     .interaction_response_data(|message| {
-                                        message.content(format!(
-                                            "Only BoD members can use this command"
-                                        ))
+                                        message.content(
+                                            "You do not have an authorized role to use this command!"
+                                        )
                                     })
                             })
                             .await?;
@@ -133,20 +138,20 @@ impl Handler {
                     // Check that there isn't already a shuffle going on
                     let lock = self.shuffle_mutex.try_lock();
 
-                    if let Err(_) = lock {
+                    if lock.is_err() {
                         command
                             .create_interaction_response(&ctx.http, |response| {
                                 response
                                     .kind(InteractionResponseType::ChannelMessageWithSource)
                                     .interaction_response_data(|message| {
-                                        message.content(format!("A shuffle is already in progress"))
+                                        message.content("A shuffle is already in progress")
                                     })
                             })
                             .await?;
                         return Ok(());
                     }
 
-                    // Get the guild
+                    // Get the guild (Discord server)
                     let guild_id = command.guild_id.unwrap();
                     let guild = guild_id
                         .to_guild_cached(&ctx)
@@ -163,6 +168,22 @@ impl Handler {
                                 && guild_channel.name.as_str().to_lowercase() == "speed friending"
                         })
                         .collect::<Vec<&GuildChannel>>();
+
+                    // If there is no speed frinding category, return an error
+                    if speed_friend_category.is_empty() {
+                        command
+                            .create_interaction_response(&ctx.http, |response| {
+                                response
+                                    .kind(InteractionResponseType::ChannelMessageWithSource)
+                                    .interaction_response_data(|message| {
+                                        message.content(
+                                            "There is no category called 'speed friending'",
+                                        )
+                                    })
+                            })
+                            .await?;
+                        return Ok(());
+                    }
 
                     // Get all the channels in the category
                     let mut speed_friend_channels = guild
@@ -196,7 +217,7 @@ impl Handler {
                             response
                                 .kind(InteractionResponseType::ChannelMessageWithSource)
                                 .interaction_response_data(|message| {
-                                    message.content(format!("Shuffling rooms!"))
+                                    message.content("Shuffling rooms!")
                                 })
                         })
                         .await?;
@@ -243,20 +264,20 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
 
-        // Todo: Move this to every guild or something
-        if let Err(e) = GuildId(672298618362789952)
-            .set_application_commands(&ctx.http, |commands| {
-                commands
-                    .create_application_command(|command| {
-                        command.name("shuffle").description("Shuffle all ")
+        for guild in ctx.cache.guilds().await.iter() {
+            // Todo: Move this to every guild or something
+            if let Err(e) = GuildId(guild.0)
+                .set_application_commands(&ctx.http, |commands| {
+                    commands.create_application_command(|command| {
+                        command.name("shuffle").description(
+                            "Shuffle everyone in voice channels in the speed friending category",
+                        )
                     })
-                    .create_application_command(|command| {
-                        command.name("start").description("Depricated")
-                    })
-            })
-            .await
-        {
-            println!("Error setting application commands: {}", e);
+                })
+                .await
+            {
+                println!("Error setting application commands: {}", e);
+            }
         }
     }
 }
