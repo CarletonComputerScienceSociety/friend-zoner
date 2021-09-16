@@ -249,20 +249,19 @@ impl EventHandler for Handler {
         println!("{} is connected!", ready.user.name);
 
         for guild in ctx.cache.guilds().await.iter() {
-
             // Todo: Move this to every guild or something
             if let Err(e) = GuildId(guild.0)
                 .set_application_commands(&ctx.http, |commands| {
-                    commands
-                        .create_application_command(|command| {
-                            command.name("shuffle").description("Shuffle everyone in voice channels in the speed friending category")
-                        })
+                    commands.create_application_command(|command| {
+                        command.name("shuffle").description(
+                            "Shuffle everyone in voice channels in the speed friending category",
+                        )
+                    })
                 })
                 .await
             {
                 println!("Error setting application commands: {}", e);
             }
         }
-
     }
 }
