@@ -1,6 +1,6 @@
 # FriendZoner
 
-FriendZoner is a bot made for shuffling users in rooms for CCSS Speed Frinding events.
+FriendZoner is a bot made for shuffling users in rooms for CCSS Speed Friending events.
 
 ## run bot
 
