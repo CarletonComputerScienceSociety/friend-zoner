@@ -110,6 +110,7 @@ impl Handler {
                     let authorized_role_ids = vec![
                         672308385517142017, // CCSS BoD
                         858020772966170635, // WiCS exec
+                        370243283244417024, // LameJam organizer
                     ];
 
                     // Check that only an BoD member can use this command
