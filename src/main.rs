@@ -111,6 +111,7 @@ impl Handler {
                         672308385517142017, // CCSS BoD
                         858020772966170635, // WiCS exec
                         370243283244417024, // LameJam organizer
+                        927950534986571847, // COMP 1501
                     ];
 
                     // Check that only an BoD member can use this command
