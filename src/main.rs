@@ -183,8 +183,6 @@ impl Handler {
                         None => None,
                     };
 
-                    dbg!(shuffle_category_id);
-
                     // Check that there isn't already a shuffle going on
                     let lock = self.shuffle_mutex.try_lock();
 
@@ -281,8 +279,14 @@ impl Handler {
                     speakers.shuffle(&mut rand::thread_rng());
                     speed_friend_channels.shuffle(&mut rand::thread_rng());
 
+                    let num_rooms = match room_size {
+                        Some(room_size) => speakers.len() / room_size as usize,
+                        None => speed_friend_channels.len(),
+                    };
+
                     for (i, speaker) in speakers.iter().enumerate() {
-                        let channel = speed_friend_channels[i % speed_friend_channels.len()];
+                        let channel =
+                            speed_friend_channels[i % num_rooms.min(speed_friend_channels.len())];
 
                         // TODO: Check that they're not already in the channel
 
