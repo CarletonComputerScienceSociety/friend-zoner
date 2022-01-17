@@ -31,8 +31,8 @@ async fn main() {
         env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN token in the environment");
 
     let mut client = Client::builder(&bot_token)
-        // .application_id(882040915882033272) // CCSS
-        .application_id(451862707746897961) // Testing
+        .application_id(882040915882033272) // Friend-zoner
+        // .application_id(451862707746897961) // Testing
         .event_handler(Handler {
             shuffle_mutex: Mutex::new(()),
         })
