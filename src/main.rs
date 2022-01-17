@@ -2,6 +2,9 @@ use futures::future;
 use rand::prelude::SliceRandom;
 use serenity::model::channel::{ChannelType, GuildChannel};
 use serenity::model::guild::Member;
+use serenity::model::interactions::application_command::{
+    ApplicationCommandInteractionDataOptionValue, ApplicationCommandOptionType,
+};
 use serenity::{
     async_trait,
     model::{
@@ -11,6 +14,7 @@ use serenity::{
     },
     prelude::*,
 };
+use std::convert::TryInto;
 use std::env;
 use std::str::FromStr;
 use strum_macros::EnumString;
@@ -27,7 +31,8 @@ async fn main() {
         env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN token in the environment");
 
     let mut client = Client::builder(&bot_token)
-        .application_id(882040915882033272)
+        // .application_id(882040915882033272) // CCSS
+        .application_id(451862707746897961) // Testing
         .event_handler(Handler {
             shuffle_mutex: Mutex::new(()),
         })
@@ -112,9 +117,10 @@ impl Handler {
                         858020772966170635, // WiCS exec
                         370243283244417024, // LameJam organizer
                         927950534986571847, // COMP 1501
+                        360856758098329610, // Testing
                     ];
 
-                    // Check that only an BoD member can use this command
+                    // Check that only a member with a authorized role can use this command
                     if !command
                         .clone()
                         .member
@@ -136,6 +142,48 @@ impl Handler {
                             .await?;
                         return Ok(());
                     }
+
+                    // Get the values for category ID and room size
+                    // TODO: Can probably clean this up a bit
+                    let shuffle_category_id: Option<u64> = match command
+                        .clone()
+                        .data
+                        .options
+                        .iter()
+                        .filter(|option| option.name == "category_id")
+                        .next()
+                    {
+                        Some(option) => match &option.resolved {
+                            Some(ApplicationCommandInteractionDataOptionValue::String(
+                                category_id,
+                            )) => Some(
+                                category_id
+                                    .parse::<u64>()
+                                    .expect("Could not parse category ID"),
+                            ),
+                            _ => None,
+                        },
+                        None => None,
+                    };
+
+                    let room_size: Option<u64> = match command
+                        .clone()
+                        .data
+                        .options
+                        .iter()
+                        .filter(|option| option.name == "room_size")
+                        .next()
+                    {
+                        Some(option) => match option.resolved {
+                            Some(ApplicationCommandInteractionDataOptionValue::Integer(
+                                room_size,
+                            )) => Some(room_size.try_into().expect("Could not convert room size")),
+                            _ => None,
+                        },
+                        None => None,
+                    };
+
+                    dbg!(shuffle_category_id);
 
                     // Check that there isn't already a shuffle going on
                     let lock = self.shuffle_mutex.try_lock();
@@ -166,8 +214,13 @@ impl Handler {
                         .iter()
                         .map(|(_, guild_channel)| guild_channel)
                         .filter(|guild_channel| {
-                            guild_channel.kind == ChannelType::Category
-                                && guild_channel.name.as_str().to_lowercase() == "speed friending"
+                            if guild_channel.kind != ChannelType::Category {
+                                return false;
+                            }
+                            match shuffle_category_id {
+                                Some(category_id) => *guild_channel.id.as_u64() == category_id,
+                                None => guild_channel.name == "Speed Friend",
+                            }
                         })
                         .collect::<Vec<&GuildChannel>>();
 
@@ -273,7 +326,19 @@ impl EventHandler for Handler {
                     commands.create_application_command(|command| {
                         command.name("shuffle").description(
                             "Shuffle everyone in voice channels in the speed friending category",
-                        )
+                        ).create_option(|option| {
+                            option
+                                .name("category_id")
+                                .description("The ID of the category to shuffle")
+                                .kind(ApplicationCommandOptionType::String)
+                                .required(false)
+                        }).create_option(|option| {
+                            option
+                                .name("room_size")
+                                .description("The number of people in each room")
+                                .kind(ApplicationCommandOptionType::Integer)
+                                .required(false)
+                        })
                     })
                 })
                 .await
