@@ -114,6 +114,7 @@ impl Handler {
 
                     let authorized_role_ids = vec![
                         672308385517142017, // CCSS BoD
+                        672298881194786837, // CCSS Mod
                         858020772966170635, // WiCS exec
                         370243283244417024, // LameJam organizer
                         927950534986571847, // COMP 1501
@@ -217,7 +218,9 @@ impl Handler {
                             }
                             match shuffle_category_id {
                                 Some(category_id) => *guild_channel.id.as_u64() == category_id,
-                                None => guild_channel.name == "Speed Friend",
+                                None => {
+                                    guild_channel.name.as_str().to_lowercase() == "speed friending"
+                                }
                             }
                         })
                         .collect::<Vec<&GuildChannel>>();
