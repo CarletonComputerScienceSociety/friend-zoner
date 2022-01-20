@@ -115,9 +115,10 @@ impl Handler {
                     let authorized_role_ids = vec![
                         672308385517142017, // CCSS BoD
                         672298881194786837, // CCSS Mod
-                        858020772966170635, // WiCS exec
+                        858020772966170635, // WiCS Exec
                         370243283244417024, // LameJam organizer
                         927950534986571847, // COMP 1501
+                        927292635943677974, // Dev Day Admin
                         360856758098329610, // Testing
                     ];
 
