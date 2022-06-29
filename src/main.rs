@@ -1,7 +1,7 @@
 use dotenv::dotenv;
 use futures::future;
 use rand::prelude::SliceRandom;
-use serenity::model::channel::{Channel, ChannelType, GuildChannel, ChannelCategory};
+use serenity::model::channel::{Channel, ChannelCategory, ChannelType, GuildChannel};
 use serenity::model::guild::Member;
 use serenity::model::interactions::application_command::{
     ApplicationCommandInteractionDataOptionValue, ApplicationCommandOptionType,
