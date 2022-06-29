@@ -1,6 +1,7 @@
+use dotenv::dotenv;
 use futures::future;
 use rand::prelude::SliceRandom;
-use serenity::model::channel::{ChannelType, GuildChannel};
+use serenity::model::channel::{Channel, ChannelCategory, ChannelType, GuildChannel};
 use serenity::model::guild::Member;
 use serenity::model::interactions::application_command::{
     ApplicationCommandInteractionDataOptionValue, ApplicationCommandOptionType,
@@ -26,13 +27,24 @@ use tracing_subscriber::EnvFilter;
 async fn main() {
     init_tracing();
 
+    // Load an dotenv file if it exists.
+    dotenv().ok();
+
     // Configure the client with your Discord bot token in the environment.
     let bot_token =
         env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN token in the environment");
 
-    let mut client = Client::builder(&bot_token)
-        .application_id(882040915882033272) // Friend-zoner
-        // .application_id(451862707746897961) // Testing
+    let application_id: u64 = env::var("APPLICATION_ID")
+        .expect("Expected APPLICATION_ID token in the environment")
+        .parse()
+        .expect("Failed to parse APPLICATION_ID");
+
+    let intents = GatewayIntents::GUILDS
+        | GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::GUILD_INTEGRATIONS;
+
+    let mut client = Client::builder(&bot_token, intents)
+        .application_id(application_id)
         .event_handler(Handler {
             shuffle_mutex: Mutex::new(()),
         })
@@ -203,28 +215,42 @@ impl Handler {
 
                     // Get the guild (Discord server)
                     let guild_id = command.guild_id.unwrap();
-                    let guild = guild_id
-                        .to_guild_cached(&ctx)
-                        .await
-                        .ok_or("Cannot get guild")?;
+                    let guild = guild_id.to_guild_cached(&ctx).ok_or("Cannot get guild")?;
 
                     // Try to get the category to be used for speed friending
                     let speed_friend_category = guild
                         .channels
                         .iter()
                         .map(|(_, guild_channel)| guild_channel)
-                        .filter(|guild_channel| {
-                            if guild_channel.kind != ChannelType::Category {
-                                return false;
-                            }
-                            match shuffle_category_id {
-                                Some(category_id) => *guild_channel.id.as_u64() == category_id,
-                                None => {
-                                    guild_channel.name.as_str().to_lowercase() == "speed friending"
+                        .filter_map(|guild_channel| {
+                            if let Channel::Category(guild_catagory) = guild_channel {
+                                info!("Checking channel {}", guild_catagory.name);
+                                match shuffle_category_id {
+                                    // If we did get a category id as input
+                                    Some(category_id) => {
+                                        if *guild_catagory.id.as_u64() == category_id {
+                                            Some(guild_catagory)
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    // Otherwise, assume we need to find a
+                                    // channel called "speed friending"
+                                    None => {
+                                        if guild_catagory.name.as_str().to_lowercase()
+                                            == "speed friending"
+                                        {
+                                            Some(guild_catagory)
+                                        } else {
+                                            None
+                                        }
+                                    }
                                 }
+                            } else {
+                                None
                             }
                         })
-                        .collect::<Vec<&GuildChannel>>();
+                        .collect::<Vec<&ChannelCategory>>();
 
                     // If there is no speed frinding category, return an error
                     if speed_friend_category.is_empty() {
@@ -246,11 +272,21 @@ impl Handler {
                     let mut speed_friend_channels = guild
                         .channels
                         .iter()
-                        .map(|(_, guild_channel)| guild_channel)
-                        .filter(|guild_channel| match guild_channel.category_id {
-                            Some(category_id) => category_id == speed_friend_category[0].id,
-                            None => false,
-                        } && guild_channel.kind == ChannelType::Voice)
+                        // .map(|(_, guild_channel)| guild_channel)
+                        .filter_map(|(_, guild_channel)| {
+                            let category_id = guild_channel.id();
+                            if let Channel::Guild(guild_channel) = guild_channel {
+                                if category_id == speed_friend_category[0].id
+                                    && guild_channel.kind == ChannelType::Voice
+                                {
+                                    Some(guild_channel)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        })
                         .collect::<Vec<&GuildChannel>>();
 
                     // Find everyone in the voice channel
@@ -327,7 +363,7 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
 
-        for guild in ctx.cache.guilds().await.iter() {
+        for guild in ctx.cache.guilds().iter() {
             // Todo: Move this to every guild or something
             if let Err(e) = GuildId(guild.0)
                 .set_application_commands(&ctx.http, |commands| {
