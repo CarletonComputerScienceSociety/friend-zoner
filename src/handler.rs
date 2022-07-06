@@ -191,10 +191,9 @@ impl Handler {
                     let mut speed_friend_channels = guild
                         .channels
                         .iter()
-                        // .map(|(_, guild_channel)| guild_channel)
                         .filter_map(|(_, guild_channel)| {
-                            let category_id = guild_channel.id();
                             if let Channel::Guild(guild_channel) = guild_channel {
+                                let category_id = guild_channel.parent_id?;
                                 if category_id == speed_friend_category[0].id
                                     && guild_channel.kind == ChannelType::Voice
                                 {
