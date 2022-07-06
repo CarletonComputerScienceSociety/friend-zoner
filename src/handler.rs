@@ -82,9 +82,7 @@ impl Handler {
                         .clone()
                         .data
                         .options
-                        .iter()
-                        .filter(|option| option.name == "category_id")
-                        .next()
+                        .iter().find(|option| option.name == "category_id")
                     {
                         Some(option) => match &option.resolved {
                             Some(ApplicationCommandInteractionDataOptionValue::String(
@@ -103,9 +101,7 @@ impl Handler {
                         .clone()
                         .data
                         .options
-                        .iter()
-                        .filter(|option| option.name == "room_size")
-                        .next()
+                        .iter().find(|option| option.name == "room_size")
                     {
                         Some(option) => match option.resolved {
                             Some(ApplicationCommandInteractionDataOptionValue::Integer(
