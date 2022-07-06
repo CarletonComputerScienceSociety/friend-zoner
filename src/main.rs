@@ -1,27 +1,12 @@
 use dotenv::dotenv;
-use futures::future;
+
 use handler::Handler;
-use rand::prelude::SliceRandom;
-use serenity::model::channel::{Channel, ChannelCategory, ChannelType, GuildChannel};
-use serenity::model::guild::Member;
-use serenity::model::interactions::application_command::{
-    ApplicationCommandInteractionDataOptionValue, ApplicationCommandOptionType,
-};
-use serenity::{
-    async_trait,
-    model::{
-        gateway::Ready,
-        id::GuildId,
-        interactions::{Interaction, InteractionResponseType},
-    },
-    prelude::*,
-};
-use std::convert::TryInto;
+
+use serenity::prelude::*;
+
 use std::env;
-use std::str::FromStr;
-use strum_macros::EnumString;
-use tokio::time::{sleep, Duration};
-use tracing::{debug, error, info, Level};
+
+use tracing::{debug, Level};
 use tracing_subscriber::EnvFilter;
 
 mod handler;
