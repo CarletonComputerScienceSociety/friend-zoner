@@ -2,16 +2,12 @@ use futures::future;
 use rand::prelude::SliceRandom;
 use serenity::model::channel::{Channel, ChannelCategory, ChannelType, GuildChannel};
 use serenity::model::guild::Member;
-use serenity::model::interactions::application_command::{
-    ApplicationCommandInteractionDataOptionValue, ApplicationCommandOptionType,
-};
+use serenity::model::prelude::command::CommandOptionType;
+use serenity::model::prelude::interaction::application_command::CommandDataOptionValue;
+use serenity::model::prelude::interaction::{Interaction, InteractionResponseType};
 use serenity::{
     async_trait,
-    model::{
-        gateway::Ready,
-        id::GuildId,
-        interactions::{Interaction, InteractionResponseType},
-    },
+    model::{gateway::Ready, id::GuildId},
     prelude::*,
 };
 use std::convert::TryInto;
@@ -86,9 +82,7 @@ impl Handler {
                         .find(|option| option.name == "category_id")
                     {
                         Some(option) => match &option.resolved {
-                            Some(ApplicationCommandInteractionDataOptionValue::String(
-                                category_id,
-                            )) => Some(
+                            Some(CommandDataOptionValue::String(category_id)) => Some(
                                 category_id
                                     .parse::<u64>()
                                     .expect("Could not parse category ID"),
@@ -106,9 +100,9 @@ impl Handler {
                         .find(|option| option.name == "room_size")
                     {
                         Some(option) => match option.resolved {
-                            Some(ApplicationCommandInteractionDataOptionValue::Integer(
-                                room_size,
-                            )) => Some(room_size.try_into().expect("Could not convert room size")),
+                            Some(CommandDataOptionValue::Integer(room_size)) => {
+                                Some(room_size.try_into().expect("Could not convert room size"))
+                            }
                             _ => None,
                         },
                         None => None,
@@ -141,7 +135,7 @@ impl Handler {
                         .map(|(_, guild_channel)| guild_channel)
                         .filter_map(|guild_channel| {
                             if let Channel::Category(guild_catagory) = guild_channel {
-                                info!("Checking channel {}", guild_catagory.name);
+                                info!("Checking category {}", guild_catagory.name);
                                 match shuffle_category_id {
                                     // If we did get a category id as input
                                     Some(category_id) => {
@@ -152,7 +146,7 @@ impl Handler {
                                         }
                                     }
                                     // Otherwise, assume we need to find a
-                                    // channel called "speed friending"
+                                    // category called "speed friending"
                                     None => {
                                         if guild_catagory.name.as_str().to_lowercase()
                                             == "speed friending"
@@ -205,6 +199,12 @@ impl Handler {
                         })
                         .collect::<Vec<&GuildChannel>>();
 
+                    // Print out the channels found
+                    info!("Found {} channels", speed_friend_channels.len());
+                    for channel in &speed_friend_channels {
+                        info!("-- {}", channel.name);
+                    }
+
                     // Find everyone in the voice channel
                     let mut speakers = future::try_join_all(
                         speed_friend_channels
@@ -216,6 +216,12 @@ impl Handler {
                     .into_iter()
                     .flatten()
                     .collect::<Vec<Member>>();
+
+                    // Print out the people found
+                    info!("Found {} speakers", speakers.len());
+                    for speaker in &speakers {
+                        info!("-- {}", speaker.display_name());
+                    }
 
                     // Remove the lobby channel from the list of channels
                     speed_friend_channels.retain(|channel| channel.name.to_lowercase() != "lobby");
@@ -290,13 +296,13 @@ impl EventHandler for Handler {
                             option
                                 .name("category_id")
                                 .description("The ID of the category to shuffle")
-                                .kind(ApplicationCommandOptionType::String)
+                                .kind(CommandOptionType::String)
                                 .required(false)
                         }).create_option(|option| {
                             option
                                 .name("room_size")
                                 .description("The number of people in each room")
-                                .kind(ApplicationCommandOptionType::Integer)
+                                .kind(CommandOptionType::Integer)
                                 .required(false)
                         })
                     })

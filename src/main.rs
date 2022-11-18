@@ -22,17 +22,12 @@ async fn main() {
     let bot_token =
         env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN token in the environment");
 
-    let application_id: u64 = env::var("APPLICATION_ID")
-        .expect("Expected APPLICATION_ID token in the environment")
-        .parse()
-        .expect("Failed to parse APPLICATION_ID");
-
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MESSAGES
-        | GatewayIntents::GUILD_INTEGRATIONS;
+        | GatewayIntents::GUILD_INTEGRATIONS
+        | GatewayIntents::GUILD_VOICE_STATES;
 
     let mut client = Client::builder(&bot_token, intents)
-        .application_id(application_id)
         .event_handler(Handler {
             shuffle_mutex: Mutex::new(()),
         })
